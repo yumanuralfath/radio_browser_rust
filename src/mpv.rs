@@ -1,7 +1,7 @@
 use std::{
     io::{Error, ErrorKind},
     os::unix::process::CommandExt,
-    process::{Command, Stdio},
+    process::Command,
 };
 
 pub fn check_app_native(app_name: &str) -> Result<String, Error> {
@@ -30,8 +30,7 @@ pub fn check_app_native(app_name: &str) -> Result<String, Error> {
 pub fn play_url(url: &str) -> Result<(), Error> {
     // call mpv
     let mut child = Command::new("mpv")
-        .args([url, "--no-video"])
-        .stdin(Stdio::piped())
+        .args([url, "--no-video", "--really-quiet"])
         .process_group(0)
         .spawn()
         .expect("failed to start mpv with url");

@@ -1,6 +1,6 @@
 [package]
 name = "redio"
-version = "0.3.2"
+version = "0.3.3"
 authors = ["Yuma Nur Alfath <yuma@yumana.my.id>"]
 description = "Radio browser app for listening radio online from radio browser"
 edition = "2024"
