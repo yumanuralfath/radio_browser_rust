@@ -7,9 +7,11 @@ use std::error::Error;
 use util::debug;
 
 mod mpv;
+mod tui;
 mod util;
 
 pub use mpv::{check_app_native, play_url};
+pub use tui::tui_main;
 
 pub struct SearchOptions<'a> {
     pub station_name: Option<&'a str>,
@@ -125,7 +127,7 @@ impl RadioBrowserApp {
         }
 
         for (station_number, station) in stations.iter().enumerate() {
-            println!("{}. {}", station_number, station.name);
+            println!("{}. {}", station_number + 1, station.name);
         }
     }
 }
