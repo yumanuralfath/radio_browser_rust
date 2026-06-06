@@ -13,5 +13,5 @@ categories = ["command-line-utilities", "multimedia::audio"]
 
 [dependencies]
 clap = { version = "4.6.1", features = ["derive"] }
-radiobrowser = { version = "*", features = ["blocking"] }
+radiobrowser = { version = "0.6.1", features = ["blocking"] }
 clap_complete = "4.6.1"
