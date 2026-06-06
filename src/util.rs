@@ -11,4 +11,3 @@ pub fn debug_value<T: Debug>(enabled: bool, label: &str, value: &T) {
         println!("{label}: {value:#?}");
     }
 }
-
