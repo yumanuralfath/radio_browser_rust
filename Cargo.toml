@@ -12,6 +12,6 @@ keywords = ["radio", "cli", "streaming", "radiobrowser", "mpv"]
 categories = ["command-line-utilities", "multimedia::audio"]
 
 [dependencies]
-clap = { version = "*", features = ["derive"] }
+clap = { version = "4.6.1", features = ["derive"] }
 radiobrowser = { version = "*", features = ["blocking"] }
-clap_complete = "*"
+clap_complete = "4.6.1"
