@@ -1,4 +1,5 @@
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, CommandFactory, Parser, Subcommand};
+use clap_complete::{Shell, generate};
 use redio::{RadioBrowserApp, SearchOptions, check_app_native, play_url};
 use std::error::Error;
 
@@ -112,6 +113,12 @@ pub enum Commands {
 
     /// Periksa semua dependensi yang diperlukan
     Doctor,
+
+    /// Generate shell completions
+    Completions {
+        #[arg(value_enum)]
+        shell: Shell,
+    },
 }
 
 #[derive(Subcommand)]
@@ -138,9 +145,18 @@ pub fn cli_init(cli: &Cli) -> Result<(), Box<dyn Error>> {
             Ok(path) => println!("Semua dependensi tersedia: {path}"),
             Err(e) => println!("Dependensi tidak ditemukan: {e}"),
         },
+        Commands::Completions { shell } => {
+            generate_completions(*shell);
+        }
     }
 
     Ok(())
+}
+
+fn generate_completions(shell: Shell) {
+    let mut cmd = Cli::command();
+
+    generate(shell, &mut cmd, "redio", &mut std::io::stdout());
 }
 
 fn command_search(app: &mut RadioBrowserApp, args: &SearchArgs) -> Result<(), Box<dyn Error>> {
