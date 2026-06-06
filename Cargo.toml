@@ -4,6 +4,12 @@ version = "0.1.0"
 authors = ["Yuma Nur Alfath <yuma@yumana.my.id>"]
 description = "Radio browser app for listening radio online from radio browser"
 edition = "2024"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/yumanuralfath/radio_browser_rust"
+homepage = "https://yumana.my.id"
+keywords = ["radio", "cli", "streaming", "radiobrowser", "mpv"]
+categories = ["command-line-utilities", "multimedia::audio"]
 
 [dependencies]
 clap = { version = "*", features = ["derive"] }
