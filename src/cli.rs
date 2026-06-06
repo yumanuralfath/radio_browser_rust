@@ -1,5 +1,5 @@
 use clap::{Args, Parser, Subcommand};
-use radiobrowser_app::{RadioBrowserApp, SearchOptions, check_app_native, play_url};
+use redio::{RadioBrowserApp, SearchOptions, check_app_native, play_url};
 use std::error::Error;
 
 #[derive(Parser)]
