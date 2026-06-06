@@ -1,5 +1,6 @@
 use std::{
     io::{Error, ErrorKind},
+    os::unix::process::CommandExt,
     process::{Command, Stdio},
 };
 
@@ -31,6 +32,7 @@ pub fn play_url(url: &str) -> Result<(), Error> {
     let mut child = Command::new("mpv")
         .args([url, "--no-video"])
         .stdin(Stdio::piped())
+        .process_group(0)
         .spawn()
         .expect("failed to start mpv with url");
 
