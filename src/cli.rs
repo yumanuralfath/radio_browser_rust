@@ -1,6 +1,6 @@
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use clap_complete::{Shell, generate};
-use redio::{RadioBrowserApp, SearchOptions, check_app_native, play_url};
+use redio::{RadioBrowserApp, SearchOptions, check_app_native, play_url, tui_main};
 use std::error::Error;
 
 #[derive(Parser)]
@@ -119,6 +119,9 @@ pub enum Commands {
         #[arg(value_enum)]
         shell: Shell,
     },
+
+    /// Run with terminal Interface
+    Tui {},
 }
 
 #[derive(Subcommand)]
@@ -148,6 +151,10 @@ pub fn cli_init(cli: &Cli) -> Result<(), Box<dyn Error>> {
         Commands::Completions { shell } => {
             generate_completions(*shell);
         }
+        Commands::Tui {} => match tui_main() {
+            Ok(()) => {}
+            Err(e) => eprintln!("Tui Error Init: {e}"),
+        },
     }
 
     Ok(())
