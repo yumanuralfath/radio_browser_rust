@@ -1,6 +1,9 @@
 use clap::{Args, CommandFactory, Parser, Subcommand};
 use clap_complete::{Shell, generate};
-use redio::{RadioBrowserApp, SearchOptions, check_app_native, play_url, tui_main};
+use redio::{
+    RadioBrowserApp, SearchOptions, check_app_native, play_url, station_click_blocking,
+    station_vote_blocking, tui_main,
+};
 use std::error::Error;
 
 #[derive(Parser)]
@@ -74,7 +77,6 @@ pub struct SearchArgs {
 }
 
 impl SearchArgs {
-    /// Pastikan minimal satu filter diisi sebelum melakukan pencarian
     pub fn has_any_filter(&self) -> bool {
         self.name.is_some()
             || self.language.is_some()
@@ -87,7 +89,6 @@ impl SearchArgs {
             || self.bitrate_max.is_some()
     }
 
-    /// Konversi ke `SearchOptions` dengan lifetime yang sesuai
     pub fn as_search_options(&self) -> SearchOptions<'_> {
         SearchOptions {
             station_name: self.name.as_deref(),
@@ -111,6 +112,15 @@ pub enum Commands {
     /// Cari stasiun radio berdasarkan filter
     Search(Box<SearchArgs>),
 
+    /// Vote untuk stasiun berdasarkan UUID
+    ///
+    /// Contoh:
+    ///   redio vote 960397f0-0c18-4afe-b66d-4e0ca0a3912c
+    Vote {
+        /// UUID stasiun yang ingin di-vote
+        uuid: String,
+    },
+
     /// Periksa semua dependensi yang diperlukan
     Doctor,
 
@@ -120,7 +130,7 @@ pub enum Commands {
         shell: Shell,
     },
 
-    /// Run with terminal Interface
+    /// Jalankan dengan antarmuka terminal (TUI)
     Tui {},
 }
 
@@ -136,6 +146,17 @@ pub enum SearchActions {
         #[arg(short, long, default_value = "1", value_name = "NOMOR")]
         pick: usize,
     },
+
+    /// Vote untuk stasiun dari hasil pencarian
+    ///
+    /// Contoh:
+    ///   search -n "jazz" vote          → vote stasiun pertama
+    ///   search -n "jazz" vote --pick 3 → vote stasiun ke-3
+    Vote {
+        /// Nomor urut stasiun yang ingin di-vote (1-based, default: 1)
+        #[arg(short, long, default_value = "1", value_name = "NOMOR")]
+        pick: usize,
+    },
 }
 
 pub fn cli_init(cli: &Cli) -> Result<(), Box<dyn Error>> {
@@ -144,6 +165,7 @@ pub fn cli_init(cli: &Cli) -> Result<(), Box<dyn Error>> {
     match &cli.commands {
         Commands::Search(args) => command_search(&mut app, args)?,
         Commands::Status => app.status_api(),
+        Commands::Vote { uuid } => command_vote(uuid),
         Commands::Doctor => match check_app_native("mpv") {
             Ok(path) => println!("Semua dependensi tersedia: {path}"),
             Err(e) => println!("Dependensi tidak ditemukan: {e}"),
@@ -162,8 +184,16 @@ pub fn cli_init(cli: &Cli) -> Result<(), Box<dyn Error>> {
 
 fn generate_completions(shell: Shell) {
     let mut cmd = Cli::command();
-
     generate(shell, &mut cmd, "redio", &mut std::io::stdout());
+}
+
+/// Vote langsung via UUID — `redio vote <uuid>`
+fn command_vote(uuid: &str) {
+    print!("Mengirim vote untuk {uuid}... ");
+    match station_vote_blocking(uuid) {
+        Ok(msg) => println!("✓ {msg}"),
+        Err(e) => println!("✗ Gagal: {e}"),
+    }
 }
 
 fn command_search(app: &mut RadioBrowserApp, args: &SearchArgs) -> Result<(), Box<dyn Error>> {
@@ -175,32 +205,64 @@ fn command_search(app: &mut RadioBrowserApp, args: &SearchArgs) -> Result<(), Bo
     let stations = app.search_builder(&args.limit, args.as_search_options())?;
     app.print_stations(&stations);
 
-    if let Some(SearchActions::Play { pick }) = args.action {
-        if stations.is_empty() {
-            println!("Tidak ada stasiun yang ditemukan untuk diputar.");
-            return Ok(());
-        }
-
-        // `pick` adalah 1-based, konversi ke index 0-based
-        let index = pick.saturating_sub(1);
-
-        match stations.get(index) {
-            Some(station) => {
-                println!(
-                    "Memutar stasiun #{} dari {}: {}",
-                    index + 1,
-                    stations.len(),
-                    station.name
-                );
-                play_url(&station.url)?;
+    match &args.action {
+        Some(SearchActions::Play { pick }) => {
+            if stations.is_empty() {
+                println!("Tidak ada stasiun yang ditemukan untuk diputar.");
+                return Ok(());
             }
-            None => println!(
-                "Nomor {} tidak valid. Hasil pencarian hanya {} stasiun (gunakan 1–{}).",
-                pick,
-                stations.len(),
-                stations.len(),
-            ),
+
+            let index = pick.saturating_sub(1);
+            match stations.get(index) {
+                Some(station) => {
+                    println!(
+                        "Memutar stasiun #{} dari {}: {}",
+                        index + 1,
+                        stations.len(),
+                        station.name
+                    );
+                    // Kirim click sebelum mulai putar
+                    station_click_blocking(&station.stationuuid);
+                    play_url(&station.url)?;
+                }
+                None => println!(
+                    "Nomor {} tidak valid. Hasil pencarian hanya {} stasiun (gunakan 1–{}).",
+                    pick,
+                    stations.len(),
+                    stations.len(),
+                ),
+            }
         }
+
+        Some(SearchActions::Vote { pick }) => {
+            if stations.is_empty() {
+                println!("Tidak ada stasiun ditemukan.");
+                return Ok(());
+            }
+
+            let index = pick.saturating_sub(1);
+            match stations.get(index) {
+                Some(station) => {
+                    print!(
+                        "Mengirim vote untuk stasiun #{} — {}... ",
+                        index + 1,
+                        station.name
+                    );
+                    match station_vote_blocking(&station.stationuuid) {
+                        Ok(msg) => println!("✓ {msg}"),
+                        Err(e) => println!("✗ Gagal: {e}"),
+                    }
+                }
+                None => println!(
+                    "Nomor {} tidak valid. Hasil pencarian hanya {} stasiun (gunakan 1–{}).",
+                    pick,
+                    stations.len(),
+                    stations.len(),
+                ),
+            }
+        }
+
+        None => {}
     }
 
     Ok(())

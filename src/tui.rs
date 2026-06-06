@@ -39,6 +39,7 @@ enum Modal {
     Help,
     Error(String),
     Playing(String),
+    Voted(String),
 }
 
 // ── State input search ───────────────────────────────────────────────────────
@@ -290,14 +291,40 @@ impl App {
         if let Some(station) = self.selected_station() {
             let name = station.name.clone();
             let url = station.url.clone();
+            let uuid = station.stationuuid.clone();
             self.playing = Some(name.clone());
             self.modal = Modal::Playing(name.clone());
             self.status_text = format!("▶ Memutar: {}", name);
 
-            // Jalankan mpv di background thread
+            // Kirim click ke API (best-effort, tidak blokir UI)
             std::thread::spawn(move || {
+                crate::station_click_blocking(&uuid);
                 let _ = crate::play_url(&url);
             });
+        }
+    }
+
+    fn do_vote(&mut self) {
+        if let Some(station) = self.selected_station() {
+            let name = station.name.clone();
+            let uuid = station.stationuuid.clone();
+
+            match crate::station_vote_blocking(&uuid) {
+                Ok(msg) => {
+                    self.modal = Modal::Voted(format!("{}: {}", name, msg));
+                    self.status_text = format!("♥ Vote dikirim: {}", name);
+                    // Update votes lokal +1 agar langsung terlihat
+                    if let Some(idx) = self.list_state.selected()
+                        && let Some(s) = self.stations.get_mut(idx)
+                    {
+                        s.votes += 1;
+                    }
+                }
+                Err(e) => {
+                    self.modal = Modal::Error(format!("Vote gagal:\n{e}"));
+                    self.status_text = "✗ Vote gagal".to_string();
+                }
+            }
         }
     }
 }
@@ -325,7 +352,7 @@ fn run(mut terminal: DefaultTerminal) -> Result<()> {
             // Modal aktif → tangani dulu
             if app.modal != Modal::None {
                 match key.code {
-                    KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') => {
+                    KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') | KeyCode::Char('v') => {
                         app.modal = Modal::None;
                     }
                     _ => {}
@@ -407,6 +434,7 @@ fn handle_results_input(app: &mut App, code: KeyCode) {
         KeyCode::Char('g') => app.select_first(),
         KeyCode::Char('G') => app.select_last(),
         KeyCode::Enter | KeyCode::Char('p') => app.do_play(),
+        KeyCode::Char('v') => app.do_vote(),
         KeyCode::Char('/') => {
             app.focus = Focus::Search;
         }
@@ -447,6 +475,7 @@ fn render(frame: &mut Frame, app: &mut App) {
         Modal::Help => render_help_modal(frame, area),
         Modal::Error(msg) => render_error_modal(frame, area, msg.clone()),
         Modal::Playing(name) => render_playing_modal(frame, area, name.clone()),
+        Modal::Voted(msg) => render_voted_modal(frame, area, msg.clone()),
         Modal::None => {}
     }
 }
@@ -815,7 +844,7 @@ fn render_detail_panel(frame: &mut Frame, app: &mut App, area: Rect) {
 fn render_statusbar(frame: &mut Frame, app: &mut App, area: Rect) {
     let hints = match app.focus {
         Focus::Search => " Tab: pindah field  ↵: cari  ↓/Esc: ke hasil  F1: bantuan ",
-        Focus::Results => " ↑↓/jk: navigasi  ↵/p: putar  /: cari lagi  q: keluar ",
+        Focus::Results => " ↑↓/jk: navigasi  ↵/p: putar  v: vote  /: cari lagi  q: keluar ",
     };
 
     let status_color = if app.status_text.starts_with('✓') {
@@ -977,5 +1006,42 @@ fn render_playing_modal(frame: &mut Frame, area: Rect, name: String) {
     let para = Paragraph::new(lines)
         .block(block)
         .style(Style::default().fg(FG));
+    frame.render_widget(para, modal_area);
+}
+
+fn render_voted_modal(frame: &mut Frame, area: Rect, msg: String) {
+    let modal_area = centered_rect(52, 9, area);
+    frame.render_widget(Clear, modal_area);
+
+    let block = Block::default()
+        .title(Span::styled(
+            " ♥ Vote Terkirim ",
+            Style::default().fg(AMBER).add_modifier(Modifier::BOLD),
+        ))
+        .borders(Borders::ALL)
+        .border_type(BorderType::Double)
+        .border_style(Style::default().fg(AMBER))
+        .style(Style::default().bg(BG2));
+
+    let lines: Vec<Line> = std::iter::once(Line::from(""))
+        .chain(
+            msg.lines()
+                .map(|l| Line::from(Span::styled(format!("  {l}"), Style::default().fg(FG)))),
+        )
+        .chain([
+            Line::from(""),
+            Line::from(Span::styled(
+                "  Terima kasih sudah mendukung stasiun ini!",
+                Style::default().fg(AMBER),
+            )),
+            Line::from(""),
+            Line::from(Span::styled(
+                "  [Esc / Enter] tutup",
+                Style::default().fg(FG_DIM),
+            )),
+        ])
+        .collect();
+
+    let para = Paragraph::new(lines).block(block).wrap(Wrap { trim: true });
     frame.render_widget(para, modal_area);
 }

@@ -1,6 +1,6 @@
 [package]
 name = "redio"
-version = "0.2.2"
+version = "0.3.2"
 authors = ["Yuma Nur Alfath <yuma@yumana.my.id>"]
 description = "Radio browser app for listening radio online from radio browser"
 edition = "2024"
@@ -12,6 +12,7 @@ keywords = ["radio", "cli", "streaming", "radiobrowser", "mpv"]
 categories = ["command-line-utilities", "multimedia::audio"]
 
 [dependencies]
+tokio = { version = "1", features = ["rt"] }
 clap = { version = "4.6.1", features = ["derive"] }
 radiobrowser = { version = "0.6.1", features = ["blocking"] }
 clap_complete = "4.6.1"

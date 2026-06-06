@@ -130,4 +130,35 @@ impl RadioBrowserApp {
             println!("{}. {}", station_number + 1, station.name);
         }
     }
+
+    /// Kirim click ke API untuk stasiun dengan uuid tertentu.
+    /// Dipanggil otomatis setiap kali stasiun diputar.
+    pub fn click_station(&mut self, uuid: &str) -> Result<String, Box<dyn Error>> {
+        let result = self.radio_browser.station_click(uuid)?;
+        Ok(result.message)
+    }
+
+    /// Tambah satu vote untuk stasiun dengan uuid tertentu.
+    /// Setiap IP hanya bisa vote sekali per stasiun.
+    pub fn vote_station(&mut self, uuid: &str) -> Result<String, Box<dyn Error>> {
+        let result = self.radio_browser.station_vote(uuid)?;
+        if result.ok {
+            Ok(result.message)
+        } else {
+            Err(result.message.into())
+        }
+    }
+}
+
+/// Wrapper untuk station_click — fire-and-forget dari thread TUI.
+pub fn station_click_blocking(uuid: &str) {
+    if let Ok(mut app) = RadioBrowserApp::new(false) {
+        let _ = app.click_station(uuid);
+    }
+}
+
+/// Wrapper untuk station_vote — dikembalikan Result agar TUI bisa tampilkan pesan.
+pub fn station_vote_blocking(uuid: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let mut app = RadioBrowserApp::new(false)?;
+    app.vote_station(uuid)
 }

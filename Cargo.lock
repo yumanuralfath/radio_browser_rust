@@ -2233,7 +2233,7 @@ dependencies = [
 
 [[package]]
 name = "redio"
-version = "0.2.2"
+version = "0.3.2"
 dependencies = [
  "clap",
  "clap_complete",
@@ -2241,6 +2241,7 @@ dependencies = [
  "crossterm",
  "radiobrowser",
  "ratatui",
+ "tokio",
 ]
 
 [[package]]
